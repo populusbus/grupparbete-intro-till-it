@@ -1,13 +1,16 @@
 def double(n):
     return n * 2
+
 def triple(n):
     return n * 3
+
 def quadruple(n):
     for i in range(2):
         n = double(n)
     return n
+
 def funky(n,m):
-    n = double(n)
+    n = triple(n)
     m = quadruple(m)
     return n + m
 
@@ -24,4 +27,4 @@ q1 = quadruple(a)    # 12
 q2 = quadruple(b)    # 56
 
 f1 = funky(a, b)     # 65
-f2 = funky(b, b)     # 84
+f2 = funky(b, b)     # 98
