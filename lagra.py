@@ -21,7 +21,7 @@ def start():
 def login():
     name = input("\nUsername: ")
     password = input("Password: ")
-    if name in users and users[name][0] == password:
+    if name in users and users[name][0] == password: # kolla om användarnamn finns och om lösenord stämmer
         print(f"\nWelcome {name}")
         menu(name)
     else:
@@ -37,7 +37,7 @@ def menu(name):
     val=input("1) View items\n2) Add item\n3) Logout\nOption: ")
     if val == "1":
         print("\nYour items:")
-        for item in users[name][1:]:
+        for item in users[name][1:]: # hoppa över första elementet som är lösenord
             num=1
             print(f"{num}) {item}")
         menu(name)
