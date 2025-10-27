@@ -1,6 +1,9 @@
 # server.py
 import socket
+import csv
 
+on=True
+stats=[{'name': 'Nikhil', 'wins': 10, 'games': 2}]
 def get_local_ip():
     """Finds the local ip adress on this machine (LAN adress)."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -15,7 +18,7 @@ def get_local_ip():
     return ip
 
 
-server_ip = get_local_ip()
+server_ip = 'localhost'
 server_port = 9090
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)# Create a TCP socket
@@ -24,15 +27,23 @@ server.bind((server_ip, server_port))
 
 server.listen(5)# Listen for incoming connections
 
-while True:
+while on==True:
     client, addr = server.accept()# Accept a connection
     print(f"Connection from {addr}")
-
-    message = client.recv(1024).decode()
-    print(f"Client says: {message}")# Print the client response
+    statsL=len(stats)
+    stats += client.recv(1024).decode()
+    print(f"Client says: {stats}")# Print the client response
 
     # print("TRIED RECIVING RESPONSE")
-    client.send('Hello from server!'.encode())# Send a response to the client
+    client.send(f'Hello from server!{stats}'.encode())# Send a response to the client
     print("Sent response to client\n")
-
     client.close()
+    if statsL != stats.len:
+        on=False
+
+
+with open('stats.csv', 'w', newline='') as csvfile:
+    fieldnames = ['name', 'branch', 'year', 'cgpa']
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows(stats)
