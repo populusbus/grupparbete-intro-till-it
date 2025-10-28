@@ -59,42 +59,34 @@ def run_client(server_ip='localhost', server_port=9999):
     name = input('Your name: ').strip() or 'Player'
     p.name = name
 
-    def place_fleet_interactive(player):
-        fleet = [("Destroyer", 3), ("Cruiser", 3), ("Patrol", 2)]
-        print('Place your ships on board size', player.own_board.size)
-        for ship_name, length in fleet:
-            placed = False
-            while not placed:
-                # Display boards for reference
-                player.display_your_board()
-                try:
-                    inp = input(f"Place {ship_name} (length {length}) as 'x y H/V': ")
-                    sx, sy, point = inp.split()
-                    sx = int(sx); sy = int(sy); point = point.upper()
-                except Exception:
-                    print('Invalid input')
-                    continue
-                ship = Ship(ship_name, length)
-                if player.place_ship(ship, sx, sy, point):
-                    placed = True
-
-    def send_setup_and_wait(sock, player):
-        ships = serialize_ships(player.own_board)
-        send_json(sock, {'type': 'setup', 'name': player.name, 'ships': ships})
-        resp = recv_json(sock)
-        if not resp or resp.get('type') != 'ok':
-            print('Server did not accept setup:', resp)
-            return False
-        return True
-
-    # Initial placement
-    place_fleet_interactive(p)
+    # Place a small fleet: ask user to place 3 ships (lengths 3,3,2) for demo
+    fleet = [("Destroyer", 3), ("Cruiser", 3), ("Patrol", 2)]
+    print('Place your ships on board size', p.own_board.size)
+    for ship_name, length in fleet:
+        placed = False
+        while not placed:
+            # Display boards for reference
+            p.display_your_board()
+            try:
+                inp = input(f"Place {ship_name} (length {length}) as 'x y H/V': ")
+                sx, sy, point = inp.split()
+                sx = int(sx); sy = int(sy); point = point.upper()
+            except Exception:
+                print('Invalid input')
+                continue
+            ship = Ship(ship_name, length)
+            if p.place_ship(ship, sx, sy, point):
+                placed = True
 
     # connect to server
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((server_ip, server_port))
     # send setup
-    if not send_setup_and_wait(sock, p):
+    ships = serialize_ships(p.own_board)
+    send_json(sock, {'type': 'setup', 'name': p.name, 'ships': ships})
+    resp = recv_json(sock)
+    if not resp or resp.get('type') != 'ok':
+        print('Server did not accept setup:', resp)
         sock.close()
         return
     print('Waiting for game to start...')
@@ -131,8 +123,18 @@ def run_client(server_ip='localhost', server_port=9999):
             x = msg.get('x'); y = msg.get('y'); result = msg.get('result')
             print(f"Incoming shot from {opponent} at ({x},{y}) -> {result}")
         elif t == 'game_over':
-            print('Game over. Winner:', msg.get('winner'))          
-            break
+            print('Game over. Winner:', msg.get('winner'))
+            play_again = input("Play again? (y/n): ").strip().lower()
+            while True:
+                if play_again == 'y':
+                    send_json(sock, {'type': 'play_again'})
+                    exit()
+                elif play_again == 'n':
+                    send_json(sock, {'type': 'quit'})
+                    exit()
+                else:
+                    play_again = input("Please enter 'y' or 'n': ").strip().lower()
+
         elif t == 'error':
             print('Error from server:', msg.get('message'))
 
