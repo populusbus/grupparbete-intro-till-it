@@ -59,34 +59,42 @@ def run_client(server_ip='localhost', server_port=9999):
     name = input('Your name: ').strip() or 'Player'
     p.name = name
 
-    # Place a small fleet: ask user to place 3 ships (lengths 3,3,2) for demo
-    fleet = [("Destroyer", 3), ("Cruiser", 3), ("Patrol", 2)]
-    print('Place your ships on board size', p.own_board.size)
-    for ship_name, length in fleet:
-        placed = False
-        while not placed:
-            # Display boards for reference
-            p.display_your_board()
-            try:
-                inp = input(f"Place {ship_name} (length {length}) as 'x y H/V': ")
-                sx, sy, point = inp.split()
-                sx = int(sx); sy = int(sy); point = point.upper()
-            except Exception:
-                print('Invalid input')
-                continue
-            ship = Ship(ship_name, length)
-            if p.place_ship(ship, sx, sy, point):
-                placed = True
+    def place_fleet_interactive(player):
+        fleet = [("Destroyer", 3), ("Cruiser", 3), ("Patrol", 2)]
+        print('Place your ships on board size', player.own_board.size)
+        for ship_name, length in fleet:
+            placed = False
+            while not placed:
+                # Display boards for reference
+                player.display_your_board()
+                try:
+                    inp = input(f"Place {ship_name} (length {length}) as 'x y H/V': ")
+                    sx, sy, point = inp.split()
+                    sx = int(sx); sy = int(sy); point = point.upper()
+                except Exception:
+                    print('Invalid input')
+                    continue
+                ship = Ship(ship_name, length)
+                if player.place_ship(ship, sx, sy, point):
+                    placed = True
+
+    def send_setup_and_wait(sock, player):
+        ships = serialize_ships(player.own_board)
+        send_json(sock, {'type': 'setup', 'name': player.name, 'ships': ships})
+        resp = recv_json(sock)
+        if not resp or resp.get('type') != 'ok':
+            print('Server did not accept setup:', resp)
+            return False
+        return True
+
+    # Initial placement
+    place_fleet_interactive(p)
 
     # connect to server
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((server_ip, server_port))
     # send setup
-    ships = serialize_ships(p.own_board)
-    send_json(sock, {'type': 'setup', 'name': p.name, 'ships': ships})
-    resp = recv_json(sock)
-    if not resp or resp.get('type') != 'ok':
-        print('Server did not accept setup:', resp)
+    if not send_setup_and_wait(sock, p):
         sock.close()
         return
     print('Waiting for game to start...')
@@ -124,7 +132,29 @@ def run_client(server_ip='localhost', server_port=9999):
             print(f"Incoming shot from {opponent} at ({x},{y}) -> {result}")
         elif t == 'game_over':
             print('Game over. Winner:', msg.get('winner'))
-            break
+            # do not close yet — wait for play-again flow from server
+            continue
+        elif t == 'play_again_request':
+            # prompt user if they want to play again
+            while True:
+                ans = input('Play again? (y/n): ').strip().lower()
+                if ans in ('y', 'n'):
+                    break
+            accept = ans == 'y'
+            send_json(sock, {'type': 'play_again_response', 'accept': accept})
+        elif t == 'play_again_result':
+            accepted = msg.get('accepted')
+            if not accepted:
+                print('Play again declined by one or both players. Closing.')
+                break
+            else:
+                print('Both players accepted — server will request new setup.')
+        elif t == 'request_setup':
+            # server asks for a new setup — prompt player again and send
+            place_fleet_interactive(p)
+            if not send_setup_and_wait(sock, p):
+                print('Server rejected re-setup or error. Closing.')
+                break
         elif t == 'error':
             print('Error from server:', msg.get('message'))
 

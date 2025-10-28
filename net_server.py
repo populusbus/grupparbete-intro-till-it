@@ -5,7 +5,7 @@ import json
 _recv_buffers = {}
 from Board import Board
 from Ship import Ship
-
+from leaderboard import leaderboard
 
 def recv_json(sock):
     fileno = sock.fileno()
@@ -65,6 +65,18 @@ def all_sunk(board):
             return False
     return True
 
+def menu():
+    option = input("1. Start Server\n2. Display leaderboard\n3. Exit\nChoose an option (1, 2 or 3): ")
+    if option == '1':
+        run_server()
+    elif option == '2':
+        lb = leaderboard()
+        lb.display_leaderboard()
+    elif option == '3':
+        print("Exiting.")
+    else:
+        print("Invalid option.")
+        menu()
 
 def run_server(host='0.0.0.0', port=9999):
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -95,6 +107,7 @@ def run_server(host='0.0.0.0', port=9999):
         print(f"Registered player {name}")
 
     print("Two players connected. Starting game.")
+
 
     turn = 0
     sockets = clients
@@ -142,6 +155,9 @@ def run_server(host='0.0.0.0', port=9999):
             print(f"{names[current]} wins!")
             send_json(cur_sock, {'type': 'game_over', 'winner': names[current]})
             send_json(sockets[opponent], {'type': 'game_over', 'winner': names[current]})
+            # update leaderboard
+            lb = leaderboard()
+            lb.update_leaderboard(names[current], names[opponent])
             break
 
         turn += 1
@@ -155,4 +171,4 @@ def run_server(host='0.0.0.0', port=9999):
 
 
 if __name__ == '__main__':
-    run_server()
+    menu()
