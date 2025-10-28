@@ -9,4 +9,8 @@ class Ship:
         print(f"{self.name} träffad! ({self.hits}/{self.length})")
 
     def is_sunk(self):
-        pass
+        """Return True if the ship has been hit at least `length` times.
+
+        This treats any hits >= length as sunk.
+        """
+        return self.hits >= self.length
