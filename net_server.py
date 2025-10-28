@@ -180,6 +180,11 @@ def game_loop(srv, clients, players):
             # update leaderboard
             lb = leaderboard()
             lb.update_leaderboard(names[current], names[opponent])
+
+            if msg.get('type') == 'play_again':
+                print("Players want to play again. Restarting game.")
+                game_loop(srv, clients, players)
+                
             break
 
         turn += 1

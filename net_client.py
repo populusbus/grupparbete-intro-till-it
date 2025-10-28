@@ -144,6 +144,7 @@ def run_client(server_ip='localhost', server_port=9999):
             print(f"Incoming shot from {opponent} at ({x},{y}) -> {result}")
         elif t == 'game_over':
             print('Game over. Winner:', msg.get('winner'))
+            
             play_again = input("Play again? (y/n): ").strip().lower()
             while True:
                 if play_again == 'y':
