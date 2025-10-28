@@ -147,6 +147,7 @@ def game_loop(srv, clients, players):
         opp_board = players[opponent]['board']
 
         # Tell current it's their turn
+        time.sleep(0.5)
         send_json(cur_sock, {'type': 'your_turn'})
 
         # Receive shot
