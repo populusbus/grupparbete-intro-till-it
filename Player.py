@@ -16,14 +16,19 @@ class Player:
         """
         return self.own_board.place_ship(ship, x, y, point)
 
-    def display_boards(self):
+    def display_your_board(self):
+        """Display only the player's own board."""
+        print(f"=== {self.name} - Own board ===")
+        self.own_board.display(show_ships=True)
+
+    def display_boards(self, opponent_name="Opponent"):
         """Display own board (left) and opponent known board (right).
 
         For quick console viewing we print them sequentially.
         """
         print(f"=== {self.name} - Own board ===")
         self.own_board.display(show_ships=True)
-        print(f"=== {self.name} - Opponent view ===")
+        print(f"=== {opponent_name} - Opponent view ===")
         # opponent_board does not have ships placed, but may have X/O markers
         self.opponent_board.display(show_ships=False)
 

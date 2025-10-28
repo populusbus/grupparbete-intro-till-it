@@ -65,6 +65,8 @@ def run_client(server_ip='localhost', server_port=9999):
     for ship_name, length in fleet:
         placed = False
         while not placed:
+            # Display boards for reference
+            p.display_your_board()
             try:
                 inp = input(f"Place {ship_name} (length {length}) as 'x y H/V': ")
                 sx, sy, point = inp.split()
@@ -99,6 +101,7 @@ def run_client(server_ip='localhost', server_port=9999):
         if t == 'start':
             print(f"Game started. You: {msg.get('you')} Opponent: {msg.get('opponent')}")
         elif t == 'your_turn':
+            p.display_boards(msg.get('opponent'))
             print('Your turn')
             while True:
                 try:
@@ -116,9 +119,9 @@ def run_client(server_ip='localhost', server_port=9999):
                     p.apply_shot_result(sx, sy, r)
                     break
         elif t == 'incoming':
-            fr = msg.get('from')
-            x = msg.get('x'); y = msg.get('y'); res = msg.get('result')
-            print(f"Incoming shot from {fr} at ({x},{y}) -> {res}")
+            opponent = msg.get('from')
+            x = msg.get('x'); y = msg.get('y'); result = msg.get('result')
+            print(f"Incoming shot from {opponent} at ({x},{y}) -> {result}")
         elif t == 'game_over':
             print('Game over. Winner:', msg.get('winner'))
             break
