@@ -180,7 +180,13 @@ def run_server(host='0.0.0.0', port=9999):
 
             if msg.get('type') == 'play_again':
                 print("Players want to play again. Restarting game.")
+                send_json(cur_sock, {'type': 'play_again'})
+                send_json(sockets[opponent], {'type': 'play_again'})
                 run_server()
+            elif msg.get('type') == 'quit':
+                send_json(cur_sock, {'type': 'quit'})
+                send_json(sockets[opponent], {'type': 'quit'})
+                print("A player declined to play again. Exiting game.")
                 
             break
 

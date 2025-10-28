@@ -80,7 +80,8 @@ def run_client(server_ip='localhost', server_port=9999):
     p.name = name
 
     # Place a small fleet: ask user to place 3 ships (lengths 3,3,2) for demo
-    fleet = [("Destroyer", 3), ("Cruiser", 3), ("Patrol", 2)]
+    #fleet = [("Destroyer", 3), ("Cruiser", 3), ("Patrol", 2)]
+    fleet= [("Destroyer", 1)]
     print('Place your ships on board size', p.own_board.size)
     for ship_name, length in fleet:
         placed = False
@@ -148,7 +149,7 @@ def run_client(server_ip='localhost', server_port=9999):
             while True:
                 if play_again == 'y':
                     send_json(sock, {'type': 'play_again'})
-                    run_client()
+                    waiting(msg)
                 elif play_again == 'n':
                     send_json(sock, {'type': 'quit'})
                     exit()
@@ -159,7 +160,14 @@ def run_client(server_ip='localhost', server_port=9999):
             print('Error from server:', msg.get('message'))
 
     sock.close()
-
+def waiting(msg):
+    print("Waiting for opponent to agree to play again...")
+    if msg.get('type') == 'play_again':
+        print("Both players agreed to play again. Restarting game.")
+        run_client()
+    elif msg.get('type') == 'quit':
+        print("Opponent declined to play again.")
+        run_client()
 
 if __name__ == '__main__':
     run_client()
