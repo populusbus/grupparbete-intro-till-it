@@ -29,7 +29,11 @@ def recv_json(sock):
             try:
                 return json.loads(line.decode())
             except json.JSONDecodeError:
-                return None
+                # malformed JSON on this line — skip it and continue with any remaining bytes
+                data = rest
+                if not data:
+                    continue
+                continue
 
 
 def serialize_ships(board):

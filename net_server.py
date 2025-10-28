@@ -29,7 +29,14 @@ def recv_json(sock):
             try:
                 return json.loads(line.decode())
             except json.JSONDecodeError:
-                return None
+                # malformed JSON on this line — skip it and continue with any remaining bytes
+                # put the rest back into the buffer and continue reading
+                data = rest
+                if not data:
+                    # no remaining data, continue to recv more
+                    continue
+                # otherwise loop will attempt to parse the remaining data (or recv more if needed)
+                continue
 
 
 def send_json(sock, obj):
