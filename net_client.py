@@ -59,34 +59,42 @@ def run_client(server_ip='localhost', server_port=9999):
     name = input('Your name: ').strip() or 'Player'
     p.name = name
 
-    # Place a small fleet: ask user to place 3 ships (lengths 3,3,2) for demo
-    fleet = [("Destroyer", 3), ("Cruiser", 3), ("Patrol", 2)]
-    print('Place your ships on board size', p.own_board.size)
-    for ship_name, length in fleet:
-        placed = False
-        while not placed:
-            # Display boards for reference
-            p.display_your_board()
-            try:
-                inp = input(f"Place {ship_name} (length {length}) as 'x y H/V': ")
-                sx, sy, point = inp.split()
-                sx = int(sx); sy = int(sy); point = point.upper()
-            except Exception:
-                print('Invalid input')
-                continue
-            ship = Ship(ship_name, length)
-            if p.place_ship(ship, sx, sy, point):
-                placed = True
+    def place_fleet_interactive(player):
+        fleet = [("Destroyer", 3), ("Cruiser", 3), ("Patrol", 2)]
+        print('Place your ships on board size', player.own_board.size)
+        for ship_name, length in fleet:
+            placed = False
+            while not placed:
+                # Display boards for reference
+                player.display_your_board()
+                try:
+                    inp = input(f"Place {ship_name} (length {length}) as 'x y H/V': ")
+                    sx, sy, point = inp.split()
+                    sx = int(sx); sy = int(sy); point = point.upper()
+                except Exception:
+                    print('Invalid input')
+                    continue
+                ship = Ship(ship_name, length)
+                if player.place_ship(ship, sx, sy, point):
+                    placed = True
+
+    def send_setup_and_wait(sock, player):
+        ships = serialize_ships(player.own_board)
+        send_json(sock, {'type': 'setup', 'name': player.name, 'ships': ships})
+        resp = recv_json(sock)
+        if not resp or resp.get('type') != 'ok':
+            print('Server did not accept setup:', resp)
+            return False
+        return True
+
+    # Initial placement
+    place_fleet_interactive(p)
 
     # connect to server
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((server_ip, server_port))
     # send setup
-    ships = serialize_ships(p.own_board)
-    send_json(sock, {'type': 'setup', 'name': p.name, 'ships': ships})
-    resp = recv_json(sock)
-    if not resp or resp.get('type') != 'ok':
-        print('Server did not accept setup:', resp)
+    if not send_setup_and_wait(sock, p):
         sock.close()
         return
     print('Waiting for game to start...')
