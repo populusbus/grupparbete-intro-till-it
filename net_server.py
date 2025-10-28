@@ -126,11 +126,7 @@ def run_server(host='0.0.0.0', port=9999):
         print(f"Registered player {name}")
 
     print("Two players connected. Starting game.")
-    game_loop(srv, clients, players)
 
-
-
-def game_loop(srv, clients, players):
     turn = 0
     sockets = clients
     names = [p['name'] for p in players]
@@ -184,7 +180,7 @@ def game_loop(srv, clients, players):
 
             if msg.get('type') == 'play_again':
                 print("Players want to play again. Restarting game.")
-                game_loop(srv, clients, players)
+                run_server()
                 
             break
 

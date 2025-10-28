@@ -110,8 +110,6 @@ def run_client(server_ip='localhost', server_port=9999):
         sock.close()
         return
     print('Waiting for game to start...')
-    gameloop(sock, p)
-def gameloop(sock, p):
     # main event loop
     while True:
         msg = recv_json(sock)
@@ -150,7 +148,7 @@ def gameloop(sock, p):
             while True:
                 if play_again == 'y':
                     send_json(sock, {'type': 'play_again'})
-                    gameloop(sock, p)
+                    run_client()
                 elif play_again == 'n':
                     send_json(sock, {'type': 'quit'})
                     exit()
