@@ -1,19 +1,32 @@
 import socket
 import json
+import os
+import time
+
+# debug flag toggled by environment variable BATTLE_DEBUG=1
+DEBUG = os.getenv('BATTLE_DEBUG', '0') != '0'
 
 # per-socket receive buffers to preserve any bytes after a newline
+# use id(sock) as key to avoid fileno reuse issues
 _recv_buffers = {}
 from Player import Player
 from Ship import Ship
 
 
 def send_json(sock, obj):
-    sock.sendall((json.dumps(obj) + '\n').encode())
+    msg = (json.dumps(obj) + '\n').encode()
+    if DEBUG:
+        try:
+            peer = sock.getpeername()
+        except Exception:
+            peer = ('?', '?')
+        print(f"[{time.strftime('%H:%M:%S')}] SEND to {peer}: {obj}")
+    sock.sendall(msg)
 
 
 def recv_json(sock):
-    fileno = sock.fileno()
-    data = _recv_buffers.pop(fileno, b'')
+    key = id(sock)
+    data = _recv_buffers.pop(key, b'')
     while True:
         try:
             chunk = sock.recv(4096)
@@ -25,9 +38,16 @@ def recv_json(sock):
         if b'\n' in data:
             line, rest = data.split(b'\n', 1)
             if rest:
-                _recv_buffers[fileno] = rest
+                _recv_buffers[key] = rest
             try:
-                return json.loads(line.decode())
+                obj = json.loads(line.decode())
+                if DEBUG:
+                    try:
+                        peer = sock.getpeername()
+                    except Exception:
+                        peer = ('?', '?')
+                    print(f"[{time.strftime('%H:%M:%S')}] RECV from {peer}: {obj}")
+                return obj
             except json.JSONDecodeError:
                 # malformed JSON on this line — skip it and continue with any remaining bytes
                 data = rest
