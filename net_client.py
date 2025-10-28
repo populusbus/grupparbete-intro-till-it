@@ -123,7 +123,7 @@ def run_client(server_ip='localhost', server_port=9999):
             x = msg.get('x'); y = msg.get('y'); result = msg.get('result')
             print(f"Incoming shot from {opponent} at ({x},{y}) -> {result}")
         elif t == 'game_over':
-            print('Game over. Winner:', msg.get('winner'))
+            print('Game over. Winner:', msg.get('winner'))          
             break
         elif t == 'error':
             print('Error from server:', msg.get('message'))
