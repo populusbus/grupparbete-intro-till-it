@@ -1,5 +1,8 @@
 import socket
 import json
+
+# per-socket receive buffers to preserve any bytes after a newline
+_recv_buffers = {}
 from Player import Player
 from Ship import Ship
 
@@ -9,14 +12,20 @@ def send_json(sock, obj):
 
 
 def recv_json(sock):
-    data = b''
+    fileno = sock.fileno()
+    data = _recv_buffers.pop(fileno, b'')
     while True:
-        chunk = sock.recv(4096)
+        try:
+            chunk = sock.recv(4096)
+        except Exception:
+            return None
         if not chunk:
             return None
         data += chunk
         if b'\n' in data:
             line, rest = data.split(b'\n', 1)
+            if rest:
+                _recv_buffers[fileno] = rest
             try:
                 return json.loads(line.decode())
             except json.JSONDecodeError:

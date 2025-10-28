@@ -1,20 +1,31 @@
 import socket
 import json
+
+# small per-socket receive buffers to preserve any bytes after a newline
+_recv_buffers = {}
 from Board import Board
 from Ship import Ship
 
 
 def recv_json(sock):
-    data = b''
+    fileno = sock.fileno()
+    data = _recv_buffers.pop(fileno, b'')
     while True:
-        chunk = sock.recv(4096)
+        try:
+            chunk = sock.recv(4096)
+        except Exception:
+            # socket error -> treat as closed
+            return None
         if not chunk:
+            # connection closed
             return None
         data += chunk
         # try split by newline
         if b'\n' in data:
             line, rest = data.split(b'\n', 1)
-            # put rest back into a buffer by prepending to next recv (simple protocol: one message per line)
+            # store rest for next call
+            if rest:
+                _recv_buffers[fileno] = rest
             try:
                 return json.loads(line.decode())
             except json.JSONDecodeError:
