@@ -103,30 +103,53 @@ def run_server(host='0.0.0.0', port=9999):
     srv.bind((host, port))
     srv.listen(5)
     print(f"Server listening on {host}:{port} - waiting for two players...")
+    try:
+        # Keep the server socket open to accept many games/rematches
+        while True:
+            clients = []
+            players = []
 
-    clients = []
-    players = []
+            # Accept two clients
+            while len(clients) < 2:
+                conn, addr = srv.accept()
+                print(f"Connected: {addr}")
+                # expect a setup message as first message
+                setup = recv_json(conn)
+                if not setup or setup.get('type') != 'setup':
+                    send_json(conn, {'type': 'error', 'message': 'Expected setup'})
+                    conn.close()
+                    continue
+                name = setup.get('name', f'Player{len(clients)+1}')
+                ships = setup.get('ships', [])
+                board = build_board_from_setup(ships)
+                clients.append(conn)
+                players.append({'name': name, 'board': board})
+                send_json(conn, {'type': 'ok', 'message': 'setup received'})
+                print(f"Registered player {name}")
 
-    # Accept two clients
-    while len(clients) < 2:
-        conn, addr = srv.accept()
-        print(f"Connected: {addr}")
-        # expect a setup message as first message
-        setup = recv_json(conn)
-        if not setup or setup.get('type') != 'setup':
-            send_json(conn, {'type': 'error', 'message': 'Expected setup'})
-            conn.close()
-            continue
-        name = setup.get('name', f'Player{len(clients)+1}')
-        ships = setup.get('ships', [])
-        board = build_board_from_setup(ships)
-        clients.append(conn)
-        players.append({'name': name, 'board': board})
-        send_json(conn, {'type': 'ok', 'message': 'setup received'})
-        print(f"Registered player {name}")
+            print("Two players connected. Starting game.")
+            # run the game loop for this pair; when it returns we'll close their sockets and accept new players
+            game_loop(srv, clients, players)
 
-    print("Two players connected. Starting game.")
-    game_loop(srv, clients, players)
+            # after game_loop returns, close the two client sockets and wait for new connections
+            for s in clients:
+                try:
+                    s.close()
+                except Exception:
+                    pass
+            options = input("Do you want to start a new game? (y/n): ").strip().lower()
+            if options != 'y':
+                break
+            elif options == 'y':
+                print("Game session ended. Waiting for new players...")
+
+    except KeyboardInterrupt:
+        print('\nServer shutting down')
+    finally:
+        try:
+            srv.close()
+        except Exception:
+            pass
 
 
 
@@ -147,6 +170,7 @@ def game_loop(srv, clients, players):
         opp_board = players[opponent]['board']
 
         # Tell current it's their turn
+        time.sleep(0.5)
         send_json(cur_sock, {'type': 'your_turn'})
 
         # Receive shot
@@ -180,7 +204,63 @@ def game_loop(srv, clients, players):
             # update leaderboard
             lb = leaderboard()
             lb.update_leaderboard(names[current], names[opponent])
-            break
+
+            # ask both players if they want to play again
+            send_json(cur_sock, {'type': 'play_again_request'})
+            send_json(sockets[opponent], {'type': 'play_again_request'})
+
+            # collect responses
+            resp_cur = recv_json(cur_sock)
+            resp_opp = recv_json(sockets[opponent])
+
+            # if either disconnected or declined, inform and end session
+            if not resp_cur or resp_cur.get('type') != 'play_again' or not resp_opp or resp_opp.get('type') != 'play_again':
+                try:
+                    send_json(cur_sock, {'type': 'quit'})
+                except Exception:
+                    pass
+                try:
+                    send_json(sockets[opponent], {'type': 'quit'})
+                except Exception:
+                    pass
+                print("A player declined or disconnected. Ending session.")
+                return
+
+            # both agreed -> request new setups (clients may also change names)
+            send_json(cur_sock, {'type': 'setup_request'})
+            send_json(sockets[opponent], {'type': 'setup_request'})
+
+            new_setup_cur = recv_json(cur_sock)
+            new_setup_opp = recv_json(sockets[opponent])
+
+            if not new_setup_cur or new_setup_cur.get('type') != 'setup' or not new_setup_opp or new_setup_opp.get('type') != 'setup':
+                try:
+                    send_json(cur_sock, {'type': 'quit'})
+                except Exception:
+                    pass
+                try:
+                    send_json(sockets[opponent], {'type': 'quit'})
+                except Exception:
+                    pass
+                print("Failed to receive valid setups for rematch. Ending session.")
+                return
+
+            # rebuild fresh boards from provided setups
+            players[current]['name'] = new_setup_cur.get('name', players[current]['name'])
+            players[current]['board'] = build_board_from_setup(new_setup_cur.get('ships', []))
+
+            players[opponent]['name'] = new_setup_opp.get('name', players[opponent]['name'])
+            players[opponent]['board'] = build_board_from_setup(new_setup_opp.get('ships', []))
+
+            # reset turn and names and notify start of new game
+            turn = 0
+            names = [p['name'] for p in players]
+            for i, sock in enumerate(sockets):
+                send_json(sock, {'type': 'ok', 'message': 'setup received'})
+                send_json(sock, {'type': 'start', 'you': names[i], 'opponent': names[1-i]})
+
+            # continue the game loop for the rematch
+            continue
 
         turn += 1
 

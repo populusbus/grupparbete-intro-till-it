@@ -75,33 +75,38 @@ def serialize_ships(board):
 def run_client(server_ip='localhost', server_port=9999):
     p = Player(name='Player')
 
-    # Simple CLI to set player name
-    name = input('Your name: ').strip() or 'Player'
-    p.name = name
+    def do_setup():
+        nonlocal p
+        p = Player(name='Player')
+        # Simple CLI to set player name
+        name = input('Your name: ').strip() or 'Player'
+        p.name = name
 
-    # Place a small fleet: ask user to place 3 ships (lengths 3,3,2) for demo
-    fleet = [("Destroyer", 3), ("Cruiser", 3), ("Patrol", 2)]
-    print('Place your ships on board size', p.own_board.size)
-    for ship_name, length in fleet:
-        placed = False
-        while not placed:
-            # Display boards for reference
-            p.display_your_board()
-            try:
-                inp = input(f"Place {ship_name} (length {length}) as 'x y H/V': ")
-                sx, sy, point = inp.split()
-                sx = int(sx); sy = int(sy); point = point.upper()
-            except Exception:
-                print('Invalid input')
-                continue
-            ship = Ship(ship_name, length)
-            if p.place_ship(ship, sx, sy, point):
-                placed = True
+        # Place a small fleet: ask user to place 3 ships for demo
+        fleet = [("Destroyer", 3), ("Cruiser", 3), ("Patrol", 2)]
+        print('Place your ships on board size', p.own_board.size)
+        for ship_name, length in fleet:
+            placed = False
+            while not placed:
+                # Display boards for reference
+                p.display_your_board()
+                try:
+                    inp = input(f"Place {ship_name} (length {length}) as 'x y H/V': ")
+                    sx, sy, point = inp.split()
+                    sx = int(sx); sy = int(sy); point = point.upper()
+                except Exception:
+                    print('Invalid input')
+                    continue
+                ship = Ship(ship_name, length)
+                if p.place_ship(ship, sx, sy, point):
+                    placed = True
 
     # connect to server
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((server_ip, server_port))
-    # send setup
+
+    # initial setup and send
+    do_setup()
     ships = serialize_ships(p.own_board)
     send_json(sock, {'type': 'setup', 'name': p.name, 'ships': ships})
     resp = recv_json(sock)
@@ -144,16 +149,34 @@ def run_client(server_ip='localhost', server_port=9999):
             print(f"Incoming shot from {opponent} at ({x},{y}) -> {result}")
         elif t == 'game_over':
             print('Game over. Winner:', msg.get('winner'))
+            # server will ask if we want to play again via 'play_again_request'
+            # just wait for that message and respond accordingly
+
+        elif t == 'play_again_request':
             play_again = input("Play again? (y/n): ").strip().lower()
             while True:
                 if play_again == 'y':
                     send_json(sock, {'type': 'play_again'})
-                    exit()
+                    # wait for server to request a setup
+                    break
                 elif play_again == 'n':
                     send_json(sock, {'type': 'quit'})
-                    exit()
+                    print('Not playing again — closing client.')
+                    sock.close()
+                    return
                 else:
                     play_again = input("Please enter 'y' or 'n': ").strip().lower()
+
+        elif t == 'setup_request':
+            print('Server requested new setup. Enter new name and place ships.')
+            do_setup()
+            ships = serialize_ships(p.own_board)
+            send_json(sock, {'type': 'setup', 'name': p.name, 'ships': ships})
+            resp = recv_json(sock)
+            if not resp or resp.get('type') != 'ok':
+                print('Server did not accept setup for rematch:', resp)
+                sock.close()
+                return
 
         elif t == 'error':
             print('Error from server:', msg.get('message'))
