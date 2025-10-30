@@ -52,9 +52,12 @@ class Player:
             self.opponent_board.grid[y][x] = 'O'
         # ignore 'already'/'invalid'
 
-    def receive_shot(self, x, y):
+    def receive_shot(self, x, y, result):
         """Convenience wrapper to let opponent fire at this player's own board.
 
         Returns the same codes as Board.receive_shot.
         """
-        return self.own_board.receive_shot(x, y)
+        if result == 'hit' or result == 'sunk':
+            self.own_board.grid[y][x] = 'X'
+        elif result == 'miss':
+            self.own_board.grid[y][x] = 'O'

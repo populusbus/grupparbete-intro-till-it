@@ -93,7 +93,7 @@ class Board:
         The board is printed with y (rows) as the first index (0..size-1) and x (cols) along the top.
         """
         # Header with x indices
-        print("   " + " ".join(f"{i:2}" for i in range(self.size)))
+        print("  " + " ".join(f"{i:2}" for i in range(self.size)))
         for y in range(self.size):
             row = []
             for x in range(self.size):

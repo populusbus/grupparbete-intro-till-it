@@ -189,7 +189,7 @@ def game_loop(srv, clients, players):
 
         # send result to shooter
         send_json(cur_sock, {'type': 'result', 'result': result, 'x': x, 'y': y})
-
+        
         # notify opponent about incoming shot and result
         try:
             send_json(sockets[opponent], {'type': 'incoming', 'from': names[current], 'x': x, 'y': y, 'result': result})
